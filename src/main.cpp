@@ -12,11 +12,11 @@ std::mt19937 gen(rd());
 int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-// punto: state es si esta activo o no
+// punto: state determina si esta activo o no
 struct Point {
     int x;
     int y;
-    bool state; // 1: activo, 2: desactivado
+    bool state; // 1: activo, 0: desactivado
     int color;
     Point(int x, int y, bool state) : x(x), y(y), state(state) {}
     Point() : x(-1), y(-1), state(0) {}
