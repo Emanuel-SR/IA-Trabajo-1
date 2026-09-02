@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 #include <random>
 
 std::random_device rd;
@@ -12,14 +13,34 @@ std::mt19937 gen(rd());
 int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
+enum class GridColor {
+    NOT_ACTIVE = 0,
+    ACTIVE = 1,
+    ENDPOINT = 2,
+    PATH = 3,
+    VISITED = 4
+};
+
 // punto: state determina si esta activo o no
 struct Point {
     int x;
     int y;
     bool state; // 1: activo, 0: desactivado
-    int color;
-    Point(int x, int y, bool state) : x(x), y(y), state(state) {}
-    Point() : x(-1), y(-1), state(0) {}
+    GridColor color; // 0: desactivado, 1: activo, 2: inicio / fin, 3: camino, 4: visitado pero pertenece al camino
+
+    // Datos necesarios para las busquedas
+    bool visited = false;
+    Point* prev = nullptr;
+
+    Point(int x, int y, bool state) : x(x), y(y), state(state) {
+        if (state == false){
+            color = GridColor::NOT_ACTIVE;
+        } else { color = GridColor::ACTIVE;}
+    }
+    Point() : x(-1), y(-1), state(false), color(GridColor::NOT_ACTIVE) {}
+    void print(){
+        std::cout << "(" << this->x << ", " << this->y << ", " << this->state << ")";
+    }
 };
 
 class Map {
@@ -64,18 +85,88 @@ public:
     //print de prueba
     void print(){
         for (int i = 0; i < size * size; i++){
-            std::cout << points[i]->x << ',' << points[i]->y << ',' << points[i]->state << ' ';
+            points[i]->print();
             if ((points[i]->x + 1) % size == 0) std::cout << '\n';
         }
-        auto v1 = getNeighbors(points[2 * size + 2]);
-
     }
 
+    Point* get_point(int i, int j){
+        return points[j * size + i];
+    }
+
+     std::vector<Point*> depthFirstSearch(Point* start, Point* target){
+        // reiniciar busqueda previa
+        for (Point* p : points){
+            p->visited = false;
+            p->prev = nullptr;
+            if (p->state){
+                p->color = GridColor::ACTIVE;
+            }
+        }
+
+        std::vector<Point*> search_stack;
+
+        start->visited = true;
+        search_stack.push_back(start);
+
+        bool found = false;
+
+        while(!search_stack.empty()){
+            Point* current = search_stack.back();
+            search_stack.pop_back();
+
+            if (current == target){
+                found = true;
+                break;
+            }
+
+            std::vector<Point*> neighbors = getNeighbors(current);
+            for (auto next : neighbors){
+                if (!next->visited){
+                    next->visited = true;
+                    next->color = GridColor::VISITED;
+                    next->prev = current;
+                    search_stack.push_back(next);
+                }
+            }
+        }
+
+        std::vector<Point*> path;
+        if (found){
+            Point* p = target;
+            while(p != nullptr){
+                path.push_back(p);
+                p->color = GridColor::PATH;
+                p = p->prev;
+            }
+            std::reverse(path.begin(), path.end());
+        }
+
+        start->color = GridColor::ENDPOINT;
+        target->color = GridColor::ENDPOINT;
+
+        return path;
+    }
+
+    void map_search(){
+        // pruebas de input
+        int i1, j1, i2, j2;
+        std::cout << "Inserte coordenadas: ";
+        std::cin >>  i1 >> j1 >> i2 >> j2;
+
+        std::vector<Point*> tmp = depthFirstSearch(points[j1 * size + i1], points[j2 * size + i2]);
+        for (auto t : tmp){
+
+            t->print();
+        }
+        std::cout << '\n';
+    }
 };
 
 int main() {
     Map m(10, 20);
     m.print();
+    m.map_search();
 
     return 0;
 }
