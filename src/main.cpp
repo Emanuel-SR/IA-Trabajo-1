@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <deque>
 #include <algorithm>
 #include <random>
 
@@ -13,12 +14,17 @@ std::mt19937 gen(rd());
 int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-enum class GridColor {
-    NOT_ACTIVE = 0,
-    ACTIVE = 1,
-    ENDPOINT = 2,
-    PATH = 3,
-    VISITED = 4
+enum class PointColor {
+    NOT_ACTIVE,
+    ACTIVE,
+    ENDPOINT,
+    PATH,
+    VISITED
+};
+
+enum class SearchType {
+    DFS,
+    BFS
 };
 
 // punto: state determina si esta activo o no
@@ -26,7 +32,7 @@ struct Point {
     int x;
     int y;
     bool state; // 1: activo, 0: desactivado
-    GridColor color; // 0: desactivado, 1: activo, 2: inicio / fin, 3: camino, 4: visitado pero pertenece al camino
+    PointColor color; // 0: desactivado, 1: activo, 2: inicio / fin, 3: camino, 4: visitado pero pertenece al camino
 
     // Datos necesarios para las busquedas
     bool visited = false;
@@ -34,10 +40,10 @@ struct Point {
 
     Point(int x, int y, bool state) : x(x), y(y), state(state) {
         if (state == false){
-            color = GridColor::NOT_ACTIVE;
-        } else { color = GridColor::ACTIVE;}
+            color = PointColor::NOT_ACTIVE;
+        } else { color = PointColor::ACTIVE;}
     }
-    Point() : x(-1), y(-1), state(false), color(GridColor::NOT_ACTIVE) {}
+    Point() : x(-1), y(-1), state(false), color(PointColor::NOT_ACTIVE) {}
     void print(){
         std::cout << "(" << this->x << ", " << this->y << ", " << this->state << ")";
     }
@@ -94,26 +100,26 @@ public:
         return points[j * size + i];
     }
 
-     std::vector<Point*> depthFirstSearch(Point* start, Point* target){
+     std::vector<Point*> blindSearch(Point* start, Point* target, SearchType type){
         // reiniciar busqueda previa
         for (Point* p : points){
             p->visited = false;
             p->prev = nullptr;
             if (p->state){
-                p->color = GridColor::ACTIVE;
+                p->color = PointColor::ACTIVE;
             }
         }
 
-        std::vector<Point*> search_stack;
+        std::deque<Point*> search;
 
         start->visited = true;
-        search_stack.push_back(start);
+        search.push_back(start);
 
         bool found = false;
 
-        while(!search_stack.empty()){
-            Point* current = search_stack.back();
-            search_stack.pop_back();
+        while(!search.empty()){
+            Point* current = search.front();
+            search.pop_front();
 
             if (current == target){
                 found = true;
@@ -121,12 +127,19 @@ public:
             }
 
             std::vector<Point*> neighbors = getNeighbors(current);
+
             for (auto next : neighbors){
                 if (!next->visited){
                     next->visited = true;
-                    next->color = GridColor::VISITED;
+                    next->color = PointColor::VISITED;
                     next->prev = current;
-                    search_stack.push_back(next);
+
+                    if (type == SearchType::DFS){
+                        search.push_front(next);
+                    } else {
+                        search.push_back(next);
+                    }
+                    
                 }
             }
         }
@@ -136,14 +149,14 @@ public:
             Point* p = target;
             while(p != nullptr){
                 path.push_back(p);
-                p->color = GridColor::PATH;
+                p->color = PointColor::PATH;
                 p = p->prev;
             }
             std::reverse(path.begin(), path.end());
         }
 
-        start->color = GridColor::ENDPOINT;
-        target->color = GridColor::ENDPOINT;
+        start->color = PointColor::ENDPOINT;
+        target->color = PointColor::ENDPOINT;
 
         return path;
     }
@@ -154,7 +167,7 @@ public:
         std::cout << "Inserte coordenadas: ";
         std::cin >>  i1 >> j1 >> i2 >> j2;
 
-        std::vector<Point*> tmp = depthFirstSearch(points[j1 * size + i1], points[j2 * size + i2]);
+        std::vector<Point*> tmp = blindSearch(points[j1 * size + i1], points[j2 * size + i2], SearchType::DFS);
         for (auto t : tmp){
 
             t->print();
