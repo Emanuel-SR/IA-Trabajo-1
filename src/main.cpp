@@ -17,6 +17,9 @@ std::mt19937 gen(rd());
 int dx[] = { -1, 0, 1, -1, 1, -1, 0, 1 };
 int dy[] = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
+float V_START = 0.85f;
+float H_START = -0.85f;
+
 enum class PointColor {
     NOT_ACTIVE,
     ACTIVE,
@@ -29,7 +32,6 @@ enum class SearchType {
     DFS,
     BFS
 };
-
 
 struct Point {
     int x;
@@ -57,9 +59,9 @@ struct Point {
 class Map {
     int size;
     // contiene todos los puntos del grafo
-    // indice = y * size + x
     std::vector<Point*> points;
-
+    Point* start_point = nullptr;
+    Point* target_point = nullptr;
 public:
 
     Map(int size, int percentage) {
@@ -80,6 +82,14 @@ public:
         }
     }
 
+    Point* getPoint(int i, int j) {
+        return points[j * size + i];
+    }
+
+    int getSize() {
+        return this->size;
+    }
+
     std::vector<Point*> getNeighbors(Point* current) {
         std::vector<Point*> neighbors;
 
@@ -87,15 +97,11 @@ public:
             int nx = current->x + dx[i];
             int ny = current->y + dy[i];
 
-            if (nx >= 0 && nx < size && ny >= 0 &&  ny < size && points[ny * size + nx]->state) {
-                neighbors.push_back(points[ny * size + nx]);
+            if (nx >= 0 && nx < size && ny >= 0 &&  ny < size && getPoint(nx, ny)->state) {
+                neighbors.push_back(getPoint(nx, ny));
             }
         }
         return neighbors;
-    }
-
-    Point* get_point(int i, int j) {
-        return points[j * size + i];
     }
 
     std::vector<Point*> blindSearch(Point* start, Point* target, SearchType type) {
@@ -122,7 +128,6 @@ public:
                 found = true;
                 break;
             }
-
 
             std::vector<Point*> neighbors = getNeighbors(current);
             for (Point* next : neighbors) {
@@ -160,38 +165,73 @@ public:
         return path;
     }
 
-    void map_search() {
-        //pendiente
+    void mapClick(int x, int y){
+        Point* p = getPoint(x, y);
+
+        if(!p->state){
+            return;
+        }
+
+        if(start_point == nullptr){
+            start_point = p;
+            start_point->color = PointColor::ENDPOINT;
+
+        } else if (target_point == nullptr && start_point != nullptr){
+            target_point = p;
+            target_point->color = PointColor::ENDPOINT;
+
+            //LLAMADA A LA BUSQUEDA
+            blindSearch(start_point, target_point, SearchType::DFS);
+        } else {
+            for (auto pt : points) {
+                pt->visited = false;
+                pt->prev = nullptr;
+                if (pt->state) pt->color = PointColor::ACTIVE;
+
+            }
+            start_point = p;
+            target_point = nullptr;
+            start_point->color = PointColor::ENDPOINT;
+        }
+
     }
 
-
     void drawMap() {
-        float v_start = 0.85f;
-        float h_start = -0.85f;
         float spacing_between_points = 1.7f / (size - 1);
+
+        auto setEdgeColor = [](Point* a, Point* b){
+            bool a_is_path = (a->color == PointColor::PATH || a->color == PointColor::ENDPOINT);
+            bool b_is_path = (b->color == PointColor::PATH || b->color == PointColor::ENDPOINT);
+        
+            if (a_is_path && b_is_path && (a->prev == b || b->prev == a)){
+                glColor3f(0.0f, 1.0f, 0.0f);
+            } else {
+                glColor3f(1.0f, 1.0f, 1.0f);
+            }
+
+        };
 
         glLineWidth(1.0f);
         glBegin(GL_LINES);
 
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                Point* actual = points[y * size + x];
+                Point* current = getPoint(x, y);
 
-                if (!actual->state)
+                if (!current->state)
                     continue;
 
-                float x1 = h_start + x * spacing_between_points;
-                float y1 = v_start - y * spacing_between_points;
-
-                glColor3f(1.0f, 1.0f, 1.0f);
+                float x1 = H_START + x * spacing_between_points;
+                float y1 = V_START - y * spacing_between_points;
 
                 // derecha
                 if (x + 1 < size) {
-                    Point* right = points[y * size + (x + 1)];
+                    Point* right = getPoint(x + 1, y);
                     if (right->state) {
-                        float x2 = h_start + (x + 1) * spacing_between_points;
+                        float x2 = H_START + (x + 1) * spacing_between_points;
                         float y2 = y1;
 
+                        setEdgeColor(current, right);
                         glVertex2f(x1, y1);
                         glVertex2f(x2, y2);
                     }
@@ -199,11 +239,12 @@ public:
 
                 // abajo
                 if (y + 1 < size) {
-                    Point* abajo = points[(y + 1) * size + x];
-                    if (abajo->state) {
+                    Point* down = getPoint(x, y + 1);
+                    if (down->state) {
                         float x2 = x1;
-                        float y2 = v_start - (y + 1) * spacing_between_points;
+                        float y2 = V_START - (y + 1) * spacing_between_points;
 
+                        setEdgeColor(current, down);
                         glVertex2f(x1, y1);
                         glVertex2f(x2, y2);
                     }
@@ -211,11 +252,12 @@ public:
 
                 // right diagonal
                 if (x + 1 < size && y + 1 < size) {
-                    Point* diagonal = points[(y + 1) * size + (x + 1)];
+                    Point* diagonal = getPoint(x + 1, y + 1);
                     if (diagonal->state) {
-                        float x2 = h_start + (x + 1) * spacing_between_points;
-                        float y2 = v_start - (y + 1) * spacing_between_points;
+                        float x2 = H_START + (x + 1) * spacing_between_points;
+                        float y2 = V_START - (y + 1) * spacing_between_points;
 
+                        setEdgeColor(current, diagonal);
                         glVertex2f(x1, y1);
                         glVertex2f(x2, y2);
                     }
@@ -223,12 +265,12 @@ public:
 
 
                 if (x - 1 >= 0 && y + 1 < size) {
-                    Point* diagonal =  points[(y + 1) * size + (x - 1)];
+                    Point* diagonal =  getPoint(x - 1, y + 1);
                     if (diagonal->state) {
-                        float x2 = h_start + (x - 1) * spacing_between_points;
+                        float x2 = H_START + (x - 1) * spacing_between_points;
+                        float y2 = V_START - (y + 1) * spacing_between_points;
 
-                        float y2 = v_start - (y + 1) * spacing_between_points;
-
+                        setEdgeColor(current, diagonal);
                         glVertex2f(x1, y1);
                         glVertex2f(x2, y2);
                     }
@@ -244,10 +286,10 @@ public:
 
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                Point* p = points[y * size + x];
+                Point* p = getPoint(x, y);
 
-                float posX = h_start + x * spacing_between_points;
-                float posY = v_start - y * spacing_between_points;
+                float posX = H_START + x * spacing_between_points;
+                float posY = V_START - y * spacing_between_points;
 
                 switch (p->color) {
                 case PointColor::NOT_ACTIVE:
@@ -286,9 +328,34 @@ public:
 };
 
 
+void mouse_button (GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS){
+        Map* m = static_cast<Map*>(glfwGetWindowUserPointer(window));
+        if(!m) return;
+
+        double mouseX, mouseY;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+
+        float ndcX = (2.0f * mouseX / width) - 1.0f;
+        float ndcY = 1.0f - (2.0f * mouseY / height);
+
+        float spacing_between_points = 1.7f / (m->getSize() - 1);
+
+
+        int mapX = std::round((ndcX - H_START) / spacing_between_points);
+        int mapY = std::round((V_START - ndcY) / spacing_between_points);
+
+        if (mapX >= 0 && mapX < m->getSize() && mapY >= 0 && mapY < m->getSize()) {
+            m->mapClick(mapX, mapY);
+        }
+    }
+}
+
 int main() {
     Map m(20, 20);
-    m.map_search();
 
     if (!glfwInit()) {
         return -1;
@@ -309,7 +376,15 @@ int main() {
         return -1;
     }
 
+    glfwSetWindowUserPointer(window, &m);
+    glfwSetMouseButtonCallback(window, mouse_button);
+
     while (!glfwWindowShouldClose(window)) {
+        // obtener tamaño real porque hay un error en linux dx
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+
         glClearColor( 0.2f,0.2f, 0.2f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
