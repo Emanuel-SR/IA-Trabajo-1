@@ -45,9 +45,10 @@ struct Point {
     Point* prev = nullptr;
 
     Point(int x, int y, bool state) : x(x), y(y), state(state) {
-        if (state == false){
+        if (state == false) {
             color = PointColor::NOT_ACTIVE;
-        } else {
+        }
+        else {
             color = PointColor::ACTIVE;
         }
     }
@@ -97,7 +98,7 @@ public:
             int nx = current->x + dx[i];
             int ny = current->y + dy[i];
 
-            if (nx >= 0 && nx < size && ny >= 0 &&  ny < size && getPoint(nx, ny)->state) {
+            if (nx >= 0 && nx < size && ny >= 0 && ny < size && getPoint(nx, ny)->state) {
                 neighbors.push_back(getPoint(nx, ny));
             }
         }
@@ -121,7 +122,7 @@ public:
         bool found = false;
 
         while (!search.empty()) {
-            Point* current =  search.front();
+            Point* current = search.front();
             search.pop_front();
 
             if (current == target) {
@@ -155,7 +156,7 @@ public:
                     PointColor::PATH;
                 p = p->prev;
             }
-            std::reverse(path.begin(), path.end() );
+            std::reverse(path.begin(), path.end());
         }
 
         start->color =
@@ -165,24 +166,134 @@ public:
         return path;
     }
 
-    void mapClick(int x, int y){
-        Point* p = getPoint(x, y);
+    //Busquedas heuristicas
 
-        if(!p->state){
+    void hillClimbing()
+    {
+        if (start_point == nullptr || target_point == nullptr) {
+            std::cout << "Primero selecciona inicio y destino.\n";
             return;
         }
 
-        if(start_point == nullptr){
+        std::cout << "Hill Climbing seleccionado.\n";
+
+        // Reiniciar informacion de busqueda
+        for (Point* p : points){
+            p->visited = false;
+            p->prev = nullptr;
+
+            if (p->state)
+            {
+                p->color = PointColor::ACTIVE;
+            }
+        }
+
+        start_point->color = PointColor::ENDPOINT;
+        target_point->color = PointColor::ENDPOINT;
+
+        //calculo de la distancia euclidiana
+        auto heuristic = [this](Point* p) {
+                float dx = (float)(p->x - target_point->x);
+                float dy = (float)(p->y - target_point->y);
+
+                return std::sqrt(dx * dx + dy * dy);
+            };
+
+        // lista L de nodos pendientes
+        std::deque<Point*> search;
+
+        start_point->visited = true;
+        search.push_back(start_point);
+
+        bool found = false;
+
+        while (!search.empty()){
+            
+            Point* current = search.front();
+            search.pop_front();
+
+            //std::cout << "Visitando: (" << current->x << ", " << current->y << ")" << "  h = " << heuristic(current) << "\n";
+
+            if (current == target_point){
+                found = true;
+                break;
+            }
+
+            std::vector<Point*> neighbors = getNeighbors(current);
+
+            // ordenar los hijos 
+            std::sort(neighbors.begin(), neighbors.end(),[heuristic](Point* a, Point* b)
+                {
+                    return heuristic(a) < heuristic(b);
+                }
+            );
+
+            for (int i = (int)neighbors.size() - 1; i >= 0; i--) {
+                Point* next = neighbors[i];
+
+                if (!next->visited){
+                    next->visited = true;
+                    next->prev = current;
+
+                    next->color = PointColor::VISITED;
+
+                    search.push_front(next);
+                }
+            }
+        }
+        //reconstruir el caminito
+        if (found){
+            std::vector<Point*> path;
+
+            Point* p = target_point;
+
+            while (p != nullptr){
+                path.push_back(p);
+                p = p->prev;
+            }
+
+            std::reverse(path.begin(), path.end());
+
+            for (Point* node : path){
+                node->color = PointColor::PATH;
+            }
+            start_point->color = PointColor::ENDPOINT;
+            target_point->color = PointColor::ENDPOINT;
+        }
+        else{
+            std::cout << "Hill Climbing no encontro un camino.\n";
+        }
+    }
+    
+
+    void mapClick(int x, int y) {
+        Point* p = getPoint(x, y);
+
+        if (!p->state) {
+            return;
+        }
+
+        if (start_point == nullptr) {
             start_point = p;
             start_point->color = PointColor::ENDPOINT;
 
-        } else if (target_point == nullptr && start_point != nullptr){
+        }
+        else if (target_point == nullptr && start_point != nullptr) {
             target_point = p;
             target_point->color = PointColor::ENDPOINT;
 
             //LLAMADA A LA BUSQUEDA
-            blindSearch(start_point, target_point, SearchType::DFS);
-        } else {
+            //blindSearch(start_point, target_point, SearchType::DFS);
+            std::cout << "Seleccione el algoritmo:\n";
+            std::cout << std::endl;
+            std::cout << "1 - DFS\n";
+            std::cout << "2 - BFS\n";
+            std::cout << "3 - Hill Climbing\n";
+            std::cout << "4 - A*\n";
+            std::cout << std::endl;
+
+        }
+        else {
             for (auto pt : points) {
                 pt->visited = false;
                 pt->prev = nullptr;
@@ -195,21 +306,32 @@ public:
         }
 
     }
+    void executeSearch(SearchType type)
+    {
+        if (start_point == nullptr || target_point == nullptr)
+        {
+            std::cout << "Primero selecciona inicio y destino.\n";
+            return;
+        }
+
+        blindSearch(start_point, target_point, type);
+    }
 
     void drawMap() {
         float spacing_between_points = 1.7f / (size - 1);
 
-        auto setEdgeColor = [](Point* a, Point* b){
+        auto setEdgeColor = [](Point* a, Point* b) {
             bool a_is_path = (a->color == PointColor::PATH || a->color == PointColor::ENDPOINT);
             bool b_is_path = (b->color == PointColor::PATH || b->color == PointColor::ENDPOINT);
-        
-            if (a_is_path && b_is_path && (a->prev == b || b->prev == a)){
+
+            if (a_is_path && b_is_path && (a->prev == b || b->prev == a)) {
                 glColor3f(0.0f, 1.0f, 0.0f);
-            } else {
+            }
+            else {
                 glColor3f(1.0f, 1.0f, 1.0f);
             }
 
-        };
+            };
 
         glLineWidth(1.0f);
         glBegin(GL_LINES);
@@ -265,7 +387,7 @@ public:
 
 
                 if (x - 1 >= 0 && y + 1 < size) {
-                    Point* diagonal =  getPoint(x - 1, y + 1);
+                    Point* diagonal = getPoint(x - 1, y + 1);
                     if (diagonal->state) {
                         float x2 = H_START + (x - 1) * spacing_between_points;
                         float y2 = V_START - (y + 1) * spacing_between_points;
@@ -294,12 +416,12 @@ public:
                 switch (p->color) {
                 case PointColor::NOT_ACTIVE:
                     // Rojo oscuro
-                    glColor3f(0.2f, 0.2f, 0.2f);  
+                    glColor3f(0.2f, 0.2f, 0.2f);
                     break;
 
                 case PointColor::ACTIVE:
                     // Blanco
-                    glColor3f(1.0f, 1.0f, 1.0f);    
+                    glColor3f(1.0f, 1.0f, 1.0f);
                     break;
 
                 case PointColor::ENDPOINT:
@@ -328,10 +450,10 @@ public:
 };
 
 
-void mouse_button (GLFWwindow* window, int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS){
+void mouse_button(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         Map* m = static_cast<Map*>(glfwGetWindowUserPointer(window));
-        if(!m) return;
+        if (!m) return;
 
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -354,8 +476,69 @@ void mouse_button (GLFWwindow* window, int button, int action, int mods) {
     }
 }
 
+bool key1Pressed = false;
+bool key2Pressed = false;
+bool key3Pressed = false;
+bool key4Pressed = false;
+
+void processInput(GLFWwindow* window, Map& m)
+{   //esc
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
+        glfwSetWindowShouldClose(window, true);
+    }
+    //dfs
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS){
+        if (!key1Pressed) {
+            m.executeSearch(SearchType::DFS);
+            std::cout << "DFS\n";
+
+            key1Pressed = true;
+        } 
+    }
+    else {
+        key1Pressed = false;
+    }
+    //bfs
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS){
+        if (!key2Pressed){
+            m.executeSearch(SearchType::BFS);
+            std::cout << "BFS\n";
+
+            key2Pressed = true;
+        }
+    }
+    else{       
+        key2Pressed = false;
+    }
+    //hill climbing
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+    {
+        if (!key3Pressed){
+            m.hillClimbing();
+            key3Pressed = true;
+        }
+    }
+    else{
+        key3Pressed = false;
+    }
+    //A*
+    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
+        if (!key4Pressed){
+            // m.aStar();
+
+            std::cout << "A*\n";
+
+            key4Pressed = true;
+        }
+    }
+    else{
+        key4Pressed = false;
+    }
+}
+
+
 int main() {
-    Map m(20, 20);
+    Map m(30, 20);
 
     if (!glfwInit()) {
         return -1;
@@ -379,20 +562,26 @@ int main() {
     glfwSetWindowUserPointer(window, &m);
     glfwSetMouseButtonCallback(window, mouse_button);
 
+
+
     while (!glfwWindowShouldClose(window)) {
+        processInput(window, m);
         // obtener tamaño real porque hay un error en linux dx
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
 
-        glClearColor( 0.2f,0.2f, 0.2f,1.0f);
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         m.drawMap();
+       
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    
 
     glfwTerminate();
 
