@@ -228,6 +228,15 @@ public:
                 }
             );
 
+            // Mostrar los vecinos ordenados
+            /*
+            std::cout << "  Vecinos ordenados: ";
+
+            for (Point* next : neighbors) {
+                std::cout << "(" << next->x << ", " << next->y << ")" << "[h=" << heuristic(next) << "] ";
+            } std::cout << "\n";
+            */
+
             for (int i = (int)neighbors.size() - 1; i >= 0; i--) {
                 Point* next = neighbors[i];
 
@@ -259,12 +268,131 @@ public:
             }
             start_point->color = PointColor::ENDPOINT;
             target_point->color = PointColor::ENDPOINT;
+
+
+            /*
+            for (Point* node : path){
+                std::cout << "(" << node->x << ", " << node->y << ") ";
+            }
+
+            std::cout << "\n";*/
         }
         else{
             std::cout << "Hill Climbing no encontro un camino.\n";
         }
     }
     
+    void aStar() {
+        if (start_point == nullptr || target_point == nullptr) {
+            std::cout << "Primero selecciona inicio y destino.\n";
+            return;
+        }
+
+        for (Point* p : points) {
+            p->visited = false;
+            p->prev = nullptr;
+            if (p->state) {
+                p->color = PointColor::ACTIVE;
+            }
+        }
+
+        start_point->color = PointColor::ENDPOINT;
+        target_point->color = PointColor::ENDPOINT;
+
+        //definir distancia euclidiana como heuristica
+        auto heuristic = [this](Point* p) {
+            float dx = (float)(p->x - target_point->x);
+            float dy = (float)(p->y - target_point->y);
+            return std::sqrt(dx * dx + dy * dy);
+            };
+
+        //uso de vectores como estructura almacena los costos g(n) y f(n) para cada nodo
+        std::vector<float> gScore(size * size, std::numeric_limits<float>::infinity());
+        std::vector<float> fScore(size * size, std::numeric_limits<float>::infinity());
+
+        //costo para el nodo inicial es 0
+        int start_index = start_point->y * size + start_point->x;
+        gScore[start_index] = 0.0f;
+        fScore[start_index] = heuristic(start_point);
+
+        //lista abierta, nodos a verificar
+        std::vector<Point*> openSet;
+        openSet.push_back(start_point);
+
+        bool found = false;
+
+        while (!openSet.empty()) {
+            //ordenar la lista abierta para que el nodo con MENOR f(n) quede al final
+            std::sort(openSet.begin(), openSet.end(), [&](Point* a, Point* b) {
+                int idx_a = a->y * size + a->x;
+                int idx_b = b->y * size + b->x;
+                return fScore[idx_a] > fScore[idx_b]; // Orden descendente para usar pop_back
+                });
+
+            //extrae el nodo con el menor f(n)
+            Point* current = openSet.back();
+            openSet.pop_back();
+
+            int current_index = current->y * size + current->x;
+            current->visited = true;
+
+            if (current != start_point && current != target_point) {
+                current->color = PointColor::VISITED;
+            }
+
+            //Si trazamos un camino al fianl,terminar busqueda
+            if (current == target_point) {
+                found = true;
+                break;
+            }
+
+            // Evaluar vecinos
+            std::vector<Point*> neighbors = getNeighbors(current);
+            for (Point* next : neighbors) {
+                if (next->visited) continue; // Ignorar nodos ya cerrados
+
+                //calcular el costo del movimiento hacia el vecino
+                //verificamos si se trata de un nodo diagonal
+                float move_cost = (current->x != next->x && current->y != next->y) ? std::sqrt(2.0f) : 1.0f;
+                float tentative_gScore = gScore[current_index] + move_cost;
+
+                int next_index = next->y * size + next->x;
+
+                //si encontramos un camino mas corto hacia este vecino
+                if (tentative_gScore < gScore[next_index]) {
+                    next->prev = current;
+                    gScore[next_index] = tentative_gScore;
+                    fScore[next_index] = gScore[next_index] + heuristic(next);
+
+                    //si el vecino no está en la lista abierta, lo agregamos
+                    if (std::find(openSet.begin(), openSet.end(), next) == openSet.end()) {
+                        openSet.push_back(next);
+                    }
+                }
+            }
+        }
+        //Camino encontrado
+        if (found) {
+            std::vector<Point*> path;
+            Point* p = target_point;
+
+            while (p != nullptr) {
+                path.push_back(p);
+                p = p->prev;
+            }
+
+            std::reverse(path.begin(), path.end());
+
+            for (Point* node : path) {
+                node->color = PointColor::PATH;
+            }
+            start_point->color = PointColor::ENDPOINT;
+            target_point->color = PointColor::ENDPOINT;
+        }
+        else {
+            std::cout << "A* no logró encontrar un camino.\n";
+        }
+    }
 
     void mapClick(int x, int y) {
         Point* p = getPoint(x, y);
@@ -524,7 +652,7 @@ void processInput(GLFWwindow* window, Map& m)
     //A*
     if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
         if (!key4Pressed){
-            // m.aStar();
+            m.aStar();
 
             std::cout << "A*\n";
 
