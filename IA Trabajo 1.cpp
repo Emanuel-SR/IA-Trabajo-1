@@ -1,12 +1,6 @@
-/*
-#define GLAD_GL_IMPLEMENTATION
-#include <glad/gl.h>
-#define GLFW_INCLUDE_NONE
+ï»¿#include <GL/glew.h>
 #include <GLFW/glfw3.h>
-*/
 
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glu32.lib")
 
@@ -178,7 +172,7 @@ public:
     void hillClimbing()
     {
         if (start_point == nullptr || target_point == nullptr) {
-            std::cout << "Primero selecciona inicio y destino.\n";
+            std::cout << "Primero selecciona inicio y destino\n";
             return;
         }
 
@@ -189,8 +183,7 @@ public:
             p->visited = false;
             p->prev = nullptr;
 
-            if (p->state)
-            {
+            if (p->state) {
                 p->color = PointColor::ACTIVE;
             }
         }
@@ -229,9 +222,8 @@ public:
             std::vector<Point*> neighbors = getNeighbors(current);
 
             // ordenar los hijos 
-            std::sort(neighbors.begin(), neighbors.end(), [heuristic](Point* a, Point* b)
-                {
-                    return heuristic(a) < heuristic(b);
+            std::sort(neighbors.begin(), neighbors.end(), [heuristic](Point* a, Point* b) {
+                return heuristic(a) < heuristic(b);
                 }
             );
 
@@ -241,9 +233,7 @@ public:
                 if (!next->visited) {
                     next->visited = true;
                     next->prev = current;
-
                     next->color = PointColor::VISITED;
-
                     search.push_front(next);
                 }
             }
@@ -266,6 +256,21 @@ public:
             }
             start_point->color = PointColor::ENDPOINT;
             target_point->color = PointColor::ENDPOINT;
+
+            //calcular distancia
+            float distance_final = 0.0f;
+            for (int i = 1; i < (int)path.size(); i++) {
+                Point* previous = path[i - 1];
+                Point* current = path[i];
+
+                if (previous->x != current->x && previous->y != current->y) {
+                    distance_final += std::sqrt(2.0f);
+                }
+                else {
+                    distance_final += 1.0f;
+                }
+            }
+            std::cout << "Distancia del camino (Hill Climbing): " << distance_final << std::endl;
         }
         else {
             std::cout << "Hill Climbing no encontro un camino.\n";
@@ -289,14 +294,14 @@ public:
         start_point->color = PointColor::ENDPOINT;
         target_point->color = PointColor::ENDPOINT;
 
-		//definir distancia euclidiana como heuristica
+        //definir distancia euclidiana como heuristica
         auto heuristic = [this](Point* p) {
             float dx = (float)(p->x - target_point->x);
             float dy = (float)(p->y - target_point->y);
             return std::sqrt(dx * dx + dy * dy);
             };
 
-		//uso de vectores como estructura almacena los costos g(n) y f(n) para cada nodo
+        //uso de vectores como estructura almacena los costos g(n) y f(n) para cada nodo
         std::vector<float> gScore(size * size, std::numeric_limits<float>::infinity());
         std::vector<float> fScore(size * size, std::numeric_limits<float>::infinity());
 
@@ -354,7 +359,7 @@ public:
                     gScore[next_index] = tentative_gScore;
                     fScore[next_index] = gScore[next_index] + heuristic(next);
 
-                    //si el vecino no está en la lista abierta, lo agregamos
+                    //si el vecino no estÃ¡ en la lista abierta, lo agregamos
                     if (std::find(openSet.begin(), openSet.end(), next) == openSet.end()) {
                         openSet.push_back(next);
                     }
@@ -378,12 +383,35 @@ public:
             }
             start_point->color = PointColor::ENDPOINT;
             target_point->color = PointColor::ENDPOINT;
+
+            
+            float total_cost = 0.0f;
+            for (size_t i = 1; i < path.size(); i++) {
+                Point* previous = path[i - 1];
+                Point* current = path[i];
+
+                if (previous->x != current->x && previous->y != current->y) {
+                    total_cost += std::sqrt(2.0f); // Movimiento diagonal
+                }
+                else {
+                    total_cost += 1.0f; // Movimiento horizontal/vertical
+                }
+            }
+
+            int total_nodes_expanded = 0;
+            for (Point* node : points) {
+                if (node->color == PointColor::VISITED || node->color == PointColor::PATH || node->color == PointColor::ENDPOINT) {
+                    total_nodes_expanded++;
+                }
+            }
+
+            std::cout << "Costo total del camino (Peso): " << total_cost << std::endl;
+            std::cout << "Total de nodos expandidos (t_n): " << total_nodes_expanded << std::endl;
         }
         else {
-            std::cout << "A* no logró encontrar un camino.\n";
+            std::cout << "A* no logrÃ³ encontrar un camino.\n";
         }
     }
-
 
     void mapClick(int x, int y) {
         Point* p = getPoint(x, y);
@@ -609,7 +637,7 @@ void processInput(GLFWwindow* window, Map& m)
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
         if (!key1Pressed) {
             m.executeSearch(SearchType::DFS);
-            std::cout << "DFS\n";
+            std::cout << "DFS Seleccionado\n";
 
             key1Pressed = true;
         }
@@ -621,7 +649,7 @@ void processInput(GLFWwindow* window, Map& m)
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
         if (!key2Pressed) {
             m.executeSearch(SearchType::BFS);
-            std::cout << "BFS\n";
+            std::cout << "BFS Seleccionado\n";
 
             key2Pressed = true;
         }
@@ -643,10 +671,8 @@ void processInput(GLFWwindow* window, Map& m)
     //A*
     if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
         if (!key4Pressed) {
+            std::cout << "A* Seleccionado\n";
             m.aStar();
-
-            std::cout << "A*\n";
-
             key4Pressed = true;
         }
     }
@@ -672,16 +698,19 @@ int main() {
 
     glfwMakeContextCurrent(window);
 
-    /*
-    if (!gladLoadGL(glfwGetProcAddress)) {
-        glfwTerminate();
-        return -1;
-    }
-    */
+
+    glfwMakeContextCurrent(window);
+
+    // NUEVA INICIALIZACIÃ“N CON GLEW (PAQUETE NUPENGL DE NUGET):
+    glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
+        std::cout << "Error al inicializar GLEW" << std::endl;
         glfwTerminate();
         return -1;
     }
+
+    glfwSetWindowUserPointer(window, &m);
+
 
     glfwSetWindowUserPointer(window, &m);
     glfwSetMouseButtonCallback(window, mouse_button);
@@ -690,7 +719,7 @@ int main() {
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window, m);
-        // obtener tamaño real porque hay un error en linux dx
+        // obtener tamaÃ±o real porque hay un error en linux dx
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
