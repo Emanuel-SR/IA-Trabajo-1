@@ -171,7 +171,7 @@ public:
     void hillClimbing()
     {
         if (start_point == nullptr || target_point == nullptr) {
-            std::cout << "Primero selecciona inicio y destino.\n";
+            std::cout << "Primero selecciona inicio y destino\n";
             return;
         }
 
@@ -182,8 +182,7 @@ public:
             p->visited = false;
             p->prev = nullptr;
 
-            if (p->state)
-            {
+            if (p->state){
                 p->color = PointColor::ACTIVE;
             }
         }
@@ -222,20 +221,10 @@ public:
             std::vector<Point*> neighbors = getNeighbors(current);
 
             // ordenar los hijos 
-            std::sort(neighbors.begin(), neighbors.end(),[heuristic](Point* a, Point* b)
-                {
+            std::sort(neighbors.begin(), neighbors.end(),[heuristic](Point* a, Point* b){
                     return heuristic(a) < heuristic(b);
                 }
             );
-
-            // Mostrar los vecinos ordenados
-            /*
-            std::cout << "  Vecinos ordenados: ";
-
-            for (Point* next : neighbors) {
-                std::cout << "(" << next->x << ", " << next->y << ")" << "[h=" << heuristic(next) << "] ";
-            } std::cout << "\n";
-            */
 
             for (int i = (int)neighbors.size() - 1; i >= 0; i--) {
                 Point* next = neighbors[i];
@@ -243,9 +232,7 @@ public:
                 if (!next->visited){
                     next->visited = true;
                     next->prev = current;
-
                     next->color = PointColor::VISITED;
-
                     search.push_front(next);
                 }
             }
@@ -269,13 +256,20 @@ public:
             start_point->color = PointColor::ENDPOINT;
             target_point->color = PointColor::ENDPOINT;
 
-
-            /*
-            for (Point* node : path){
-                std::cout << "(" << node->x << ", " << node->y << ") ";
+            //calcular distancia
+            float distance_final = 0.0f;
+            for (int i = 1; i < (int)path.size(); i++) {
+                Point* previous = path[i - 1];
+                Point* current = path[i];
+            
+                if (previous->x != current->x && previous->y != current->y) {
+                    distance_final += std::sqrt(2.0f);
+                }
+                else {
+                    distance_final += 1.0f;
+                }
             }
-
-            std::cout << "\n";*/
+            std::cout << "Distancia del camino (Hill Climbing): " << distance_final << std::endl;
         }
         else{
             std::cout << "Hill Climbing no encontro un camino.\n";
