@@ -702,7 +702,7 @@ int main() {
         return -1;
     }
 
-    GLFWwindow* window = glfwCreateWindow(900, 900, "Vengo por tu perceptron", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(900, 900, "BUSQUEDAS CIEGAS Y HEURISTICAS", NULL, NULL);
 
     if (!window) {
         glfwTerminate();
